@@ -28,6 +28,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const candidates: RoutingCandidate[] = (rows ?? []).map((row: any) => ({
     factoryId: row.factories.id,
     factoryName: row.factories.legal_name,
+    capacitySlotId: row.id,
     productCategories: row.factories.product_categories ?? [],
     certifications: row.factories.certifications ?? [],
     availableUnits: Math.max(0, row.available_units - row.reserved_units),
@@ -37,8 +38,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     onTimeRate: row.factories.on_time_rate == null ? undefined : Number(row.factories.on_time_rate),
     defectRate: row.factories.defect_rate == null ? undefined : Number(row.factories.defect_rate),
     capacityConfidence: row.confidence == null ? undefined : Number(row.confidence),
-    capacitySlotId: row.id,
-  } as RoutingCandidate & { capacitySlotId: string }));
+  }));
 
   const results = routeOrder({
     productCategory: order.product_category,
@@ -50,21 +50,28 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
 
   await admin.from("order_matches").delete().eq("order_id", id).eq("status", "suggested");
 
-  if (results.length > 0) {
-    const slots = new Map((candidates as Array<RoutingCandidate & { capacitySlotId: string }>).map((c) => [c.factoryId, c.capacitySlotId]));
-    await admin.from("order_matches").insert(results.slice(0, 20).map((result) => ({
-      order_id: id,
-      factory_id: result.factoryId,
-      capacity_slot_id: slots.get(result.factoryId) ?? null,
-      score: result.score,
-      price_score: result.scores.price,
-      capacity_score: result.scores.capacity,
-      capability_score: result.scores.capability,
-      delivery_score: result.scores.delivery,
-      quality_score: result.scores.quality,
-      compliance_score: result.scores.compliance,
-      rationale: { reasons: result.reasons },
-    })));
+  const top = results.slice(0, 20);
+  let persisted: any[] = [];
+  if (top.length > 0) {
+    const { data: inserted, error: insertError } = await admin
+      .from("order_matches")
+      .insert(top.map((result) => ({
+        order_id: id,
+        factory_id: result.factoryId,
+        capacity_slot_id: result.capacitySlotId ?? null,
+        score: result.score,
+        price_score: result.scores.price,
+        capacity_score: result.scores.capacity,
+        capability_score: result.scores.capability,
+        delivery_score: result.scores.delivery,
+        quality_score: result.scores.quality,
+        compliance_score: result.scores.compliance,
+        rationale: { reasons: result.reasons },
+      })))
+      .select("id,factory_id,capacity_slot_id");
+
+    if (insertError) return Response.json({ error: "Unable to persist routing matches" }, { status: 500 });
+    persisted = inserted ?? [];
   }
 
   await admin.from("orders").update({ status: "matching" }).eq("id", id);
@@ -74,8 +81,14 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     action: "order.routed",
     entity_type: "order",
     entity_id: id,
-    metadata: { candidateCount: candidates.length, matchCount: results.length },
+    metadata: { candidateCount: candidates.length, matchCount: top.length },
   });
 
-  return Response.json({ matches: results.slice(0, 20) });
+  const matchIds = new Map(persisted.map((row) => [`${row.factory_id}:${row.capacity_slot_id}`, row.id]));
+  return Response.json({
+    matches: top.map((result) => ({
+      ...result,
+      id: matchIds.get(`${result.factoryId}:${result.capacitySlotId ?? null}`),
+    })),
+  });
 }
