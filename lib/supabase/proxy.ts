@@ -13,14 +13,16 @@ export async function updateSession(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet, cacheHeaders) {
         cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
         response = NextResponse.next({ request });
         cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        Object.entries(cacheHeaders).forEach(([header, value]) => response.headers.set(header, value));
       },
     },
   });
 
-  await supabase.auth.getUser();
+  // getClaims validates the JWT and is the recommended SSR guard primitive.
+  await supabase.auth.getClaims();
   return response;
 }
