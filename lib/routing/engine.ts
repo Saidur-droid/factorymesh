@@ -9,6 +9,7 @@ export type RoutingOrder = {
 export type RoutingCandidate = {
   factoryId: string;
   factoryName: string;
+  capacitySlotId?: string;
   productCategories: string[];
   certifications: string[];
   availableUnits: number;
