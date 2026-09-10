@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 export const capacitySlotSchema = z.object({
-  startsOn: z.string().date(),
-  endsOn: z.string().date(),
+  startsOn: z.iso.date(),
+  endsOn: z.iso.date(),
   lineType: z.string().trim().min(1).max(120).optional(),
   productCategory: z.string().trim().min(2).max(80),
   availableUnits: z.coerce.number().int().nonnegative().max(100_000_000),
