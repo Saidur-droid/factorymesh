@@ -24,7 +24,7 @@ test('buyer routes, reserves, factory executes, operator observes', async ({ pag
 
   await page.getByRole('button', { name: 'operator' }).click();
   await expect(page.getByText('See the manufacturing network as one system.')).toBeVisible();
-  await expect(page.getByText('Shipped')).toBeVisible();
+  await expect(page.locator('.demo-status')).toContainText('Shipped');
 
   await expect(page.getByText('Capacity reserved')).toBeVisible();
   await expect(page.getByText('Dispatch shipment')).toBeVisible();
