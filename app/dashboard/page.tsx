@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { CapacityForm } from "@/components/capacity-form";
 import { OrderActions } from "@/components/order-actions";
 import { ProductionBriefForm } from "@/components/production-brief-form";
+import { ProductionEventForm } from "@/components/production-event-form";
+import { TechPackUploader } from "@/components/tech-pack-uploader";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +29,7 @@ export default async function DashboardPage() {
   const [{ data: orders }, { data: capacity }] = await Promise.all([
     supabase
       .from("orders")
-      .select("id,title,product_category,quantity,target_unit_price,currency,required_delivery_date,status,assigned_factory_id,created_at")
+      .select("id,title,product_category,quantity,target_unit_price,currency,required_delivery_date,status,assigned_factory_id,tech_pack_path,created_at")
       .order("created_at", { ascending: false })
       .limit(50),
     supabase
@@ -75,12 +77,14 @@ export default async function DashboardPage() {
         <div className="section-heading"><div><span className="eyebrow">Orders</span><h2>{isFactory ? "Assigned production" : "Production pipeline"}</h2></div><span className="status">{orders?.length ?? 0} records</span></div>
         <div className="data-list">
           {(orders ?? []).length === 0 ? <p className="empty-state">No orders yet.</p> : (orders ?? []).map((order) => (
-            <article className="data-row" key={order.id}>
+            <article className="data-row order-record" key={order.id}>
               <div className="data-main"><strong>{order.title}</strong><span>{order.product_category} · {order.quantity.toLocaleString()} units</span></div>
               <div><span>Status</span><strong>{order.status.replaceAll("_", " ")}</strong></div>
               <div><span>Deadline</span><strong>{order.required_delivery_date}</strong></div>
               <div><span>Target</span><strong>{order.target_unit_price ? `${order.currency} ${Number(order.target_unit_price).toFixed(2)}` : "Open"}</strong></div>
+              {isBuyer && <TechPackUploader orderId={order.id} hasFile={Boolean(order.tech_pack_path)} />}
               {isBuyer && !order.assigned_factory_id ? <OrderActions orderId={order.id} quantity={order.quantity} /> : null}
+              {isFactory && order.assigned_factory_id ? <ProductionEventForm orderId={order.id} /> : null}
             </article>
           ))}
         </div>
