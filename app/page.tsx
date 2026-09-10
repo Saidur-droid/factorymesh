@@ -16,7 +16,8 @@ export default function Home() {
             reservations and execution tracking — starting with Bangladesh RMG.
           </p>
           <div className="actions">
-            <button>Create production brief</button>
+            <a href="/demo"><button>Run interactive demo</button></a>
+            <a href="/login">Open production workspace</a>
             <a href="#capacity">View live capacity</a>
           </div>
         </div>
@@ -53,7 +54,7 @@ export default function Home() {
               <div><span>Window</span><strong>{slot.window}</strong></div>
               <div><span>Available</span><strong>{slot.units}</strong></div>
               <div><span>Confidence</span><strong>{slot.confidence}</strong></div>
-              <button>Inspect</button>
+              <a href="/demo"><button>Inspect</button></a>
             </article>
           ))}
         </div>
