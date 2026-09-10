@@ -1,3 +1,4 @@
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { productionEventSchema } from "@/lib/validation/production";
 
@@ -13,13 +14,30 @@ export async function POST(request: Request) {
 
   const { data: order } = await supabase
     .from("orders")
-    .select("id,assigned_factory_id,status")
+    .select("id,buyer_organization_id,assigned_factory_id,status")
     .eq("id", parsed.data.orderId)
     .single();
 
   if (!order?.assigned_factory_id) {
     return Response.json({ error: "Order is not assigned to a factory" }, { status: 409 });
   }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("organization_id,role")
+    .eq("id", auth.user.id)
+    .single();
+
+  if (!profile) return Response.json({ error: "Profile missing" }, { status: 403 });
+
+  const { data: assignedFactory } = await supabase
+    .from("factories")
+    .select("organization_id")
+    .eq("id", order.assigned_factory_id)
+    .single();
+
+  const mayWrite = profile.role === "operator" || profile.role === "admin" || assignedFactory?.organization_id === profile.organization_id;
+  if (!mayWrite) return Response.json({ error: "You cannot update this order" }, { status: 403 });
 
   const { data, error } = await supabase
     .from("production_events")
@@ -44,7 +62,16 @@ export async function POST(request: Request) {
         ? "shipped"
         : null;
 
-  if (nextStatus) await supabase.from("orders").update({ status: nextStatus }).eq("id", parsed.data.orderId);
+  const admin = createSupabaseAdminClient();
+  if (nextStatus) await admin.from("orders").update({ status: nextStatus }).eq("id", parsed.data.orderId);
+  await admin.from("audit_logs").insert({
+    actor_user_id: auth.user.id,
+    organization_id: profile.organization_id,
+    action: parsed.data.eventType,
+    entity_type: "order",
+    entity_id: parsed.data.orderId,
+    metadata: { progressPercent: parsed.data.progressPercent ?? null },
+  });
 
   return Response.json({ event: data }, { status: 201 });
 }
