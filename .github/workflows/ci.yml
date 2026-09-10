@@ -28,5 +28,5 @@ jobs:
         run: npm run typecheck
       - name: Test
         run: npm test
-      - name: Build
+      - name: Build production bundle
         run: npm run build
