@@ -43,7 +43,9 @@ export function routeOrder(order: RoutingOrder, candidates: RoutingCandidate[]):
 
   return candidates
     .filter((candidate) => candidate.productCategories.map(norm).includes(norm(order.productCategory)))
-    .filter((candidate) => candidate.availableUnits > 0)
+    // MVP reservation is intentionally single-factory and atomic. Multi-factory allocation
+    // is a later routing mode and must not masquerade as a complete reservation.
+    .filter((candidate) => candidate.availableUnits >= order.quantity)
     .filter((candidate) => Date.parse(candidate.slotEndsOn) <= deliveryTs)
     .map((candidate) => {
       const capability = 100;
@@ -66,6 +68,7 @@ export function routeOrder(order: RoutingOrder, candidates: RoutingCandidate[]):
 
       const reasons = [
         `${candidate.availableUnits.toLocaleString()} units available`,
+        `full order capacity available in one slot`,
         `slot completes by ${candidate.slotEndsOn}`,
         `${Math.round(delivery)}% delivery reliability signal`,
       ];
