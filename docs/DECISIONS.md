@@ -2,6 +2,49 @@
 
 This file records important founder/product decisions so future contributors understand not only what FactoryMesh is, but why.
 
+## 2026-09-20 — Lock the buyer outcome
+Decision: FactoryMesh's core promise is to identify which factory is truly available for an exact order, how much capacity is available, expected timing/cost/risk, and enable the buyer to reserve that capacity.
+
+Reason: Buyers should pay for production certainty and execution leverage, not for access to a supplier directory.
+
+Canonical wording:
+
+> **For your exact order, show which factory is truly available now, how much capacity is available, how fast it can produce, the expected cost and execution risk — then let you reserve that capacity immediately.**
+
+## 2026-09-20 — Lock five differentiation primitives
+Decision: The product strategy is organized around:
+1. Live 12-week Capacity Map
+2. Capacity Confidence Score
+3. Order Routing Engine
+4. Capacity Reservation
+5. Real Outcome History
+
+Reason: These five layers turn FactoryMesh from supplier discovery into manufacturing orchestration.
+
+## 2026-09-20 — Lock launch pricing for the first five paid shipped orders
+Decision: Standard early pricing is **2.5% of fulfilled/shipped FOB manufacturing GMV**, with a **$1,000 minimum per successful order**. Orders at or above $250k may use 2.0% when scope and economics support it. Large programs may use negotiated volume pricing.
+
+No signup fee, no mandatory buyer subscription and no heavy factory fee at launch.
+
+Reason: Pricing should align FactoryMesh revenue with delivered manufacturing value. The first five paid shipped orders are the pricing-validation cohort; only real willingness-to-pay and unit economics can make the rate truly market validated.
+
+## 2026-09-20 — No successful order, no standard orchestration fee
+Decision: The launch model is success-oriented. Standard orchestration revenue is earned when a FactoryMesh-supported order successfully reaches the agreed commercial execution point.
+
+Reason: Reduce buyer adoption friction and align incentives with outcomes.
+
+## 2026-09-20 — Lock the canonical data moat
+Decision: The long-term proprietary graph is:
+
+> **Factory → Capability → Capacity Window → Buyer → Quote → Reservation → Production → QC → Shipment → Actual Outcome**
+
+Reason: Interface features can be copied; accumulated capacity accuracy and execution history cannot be copied instantly.
+
+## 2026-09-20 — Do not claim category leadership before proof
+Decision: FactoryMesh must not call itself “the best,” “leading,” or equivalent until real market evidence supports it.
+
+Reason: Competitive differentiation should come from verified capacity, routing performance, reservations, fulfilled GMV, repeat buyers and improving economics rather than marketing claims.
+
 ## 2026-09-11 — FactoryMesh is an orchestration network, not a supplier marketplace
 Decision: Default UX returns a recommended executable production plan, not a directory of factories.
 
