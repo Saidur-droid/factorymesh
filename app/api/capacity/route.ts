@@ -1,3 +1,4 @@
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { capacitySlotSchema } from "@/lib/validation/capacity";
 
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
   if (!factory) return Response.json({ error: "Factory profile missing" }, { status: 409 });
 
   const input = parsed.data;
-  const { data, error } = await supabase
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
     .from("capacity_slots")
     .insert({
       factory_id: factory.id,
@@ -62,5 +64,15 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return Response.json({ error: "Unable to publish capacity" }, { status: 500 });
+
+  await admin.from("audit_logs").insert({
+    actor_user_id: auth.user.id,
+    organization_id: profile.organization_id,
+    action: "capacity.published",
+    entity_type: "capacity_slot",
+    entity_id: data.id,
+    metadata: { source: "manual", confidence: 50 },
+  });
+
   return Response.json({ capacity: data }, { status: 201 });
 }
