@@ -39,7 +39,8 @@ export async function POST(request: Request) {
   const mayWrite = profile.role === "operator" || profile.role === "admin" || assignedFactory?.organization_id === profile.organization_id;
   if (!mayWrite) return Response.json({ error: "You cannot update this order" }, { status: 403 });
 
-  const { data, error } = await supabase
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
     .from("production_events")
     .insert({
       order_id: parsed.data.orderId,
@@ -62,7 +63,6 @@ export async function POST(request: Request) {
         ? "shipped"
         : null;
 
-  const admin = createSupabaseAdminClient();
   if (nextStatus) await admin.from("orders").update({ status: nextStatus }).eq("id", parsed.data.orderId);
   await admin.from("audit_logs").insert({
     actor_user_id: auth.user.id,
