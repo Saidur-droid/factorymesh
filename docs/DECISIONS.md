@@ -82,3 +82,21 @@ Reason: Replacing factory systems creates unnecessary adoption friction and dist
 
 ## 2026-09-11 — FactoryMesh codename is not guaranteed final brand
 Decision: Treat FactoryMesh as current project/product codename until full global naming/trademark/domain diligence is complete.
+
+
+## 2026-10-03 — Lock execution sequence around Ideathon
+
+Decision: Complete the Ideathon Bangladesh Stage 1 submission first, then return to FactoryMesh production-live hardening and premium product polish.
+
+Reason: Stage 1 is judged on the strength and clarity of the idea and does not require a prototype or production-live startup. The core MVP is already implemented and verified in CI/E2E, so the deadline-sensitive priority is a clear, evidence-grounded submission rather than rushing infrastructure changes before applying.
+
+Post-submission FactoryMesh priority:
+1. dedicated production backend/infrastructure;
+2. live Auth / DB / Storage;
+3. production deployment;
+4. real-user end-to-end verification;
+5. tenant isolation and concurrent reservation validation;
+6. monitoring, recovery and security hardening;
+7. premium, non-generic product UX polish across the real buyer/factory/operator workflow.
+
+Design rule: do not replace the product with a generic competition landing page. Product polish must strengthen the actual manufacturing workflow, trust, clarity and execution quality.
