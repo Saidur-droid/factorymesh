@@ -7,6 +7,32 @@ const schema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20).optional(),
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   APP_ENV: z.enum(["development", "preview", "production"]).default("development"),
+}).superRefine((value, ctx) => {
+  if (value.APP_ENV === "production") {
+    if (!value.SUPABASE_SECRET_KEY && !value.SUPABASE_SERVICE_ROLE_KEY) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["SUPABASE_SECRET_KEY"],
+        message: "A privileged Supabase server key is required in production",
+      });
+    }
+
+    if (value.NEXT_PUBLIC_APP_URL.startsWith("http://")) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["NEXT_PUBLIC_APP_URL"],
+        message: "Production app URL must use HTTPS",
+      });
+    }
+
+    if (/example\.supabase\.co/i.test(value.NEXT_PUBLIC_SUPABASE_URL)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["NEXT_PUBLIC_SUPABASE_URL"],
+        message: "Placeholder Supabase URL cannot be used in production",
+      });
+    }
+  }
 });
 
 export const env = schema.parse({
