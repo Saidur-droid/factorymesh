@@ -1,3 +1,4 @@
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { productionBriefSchema } from "@/lib/validation/order";
 
@@ -34,7 +35,8 @@ export async function POST(request: Request) {
   }
 
   const input = parsed.data;
-  const { data, error } = await supabase
+  const admin = createSupabaseAdminClient();
+  const { data, error } = await admin
     .from("orders")
     .insert({
       buyer_organization_id: profile.organization_id,
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unable to create production brief" }, { status: 500 });
   }
 
-  await supabase.from("audit_logs").insert({
+  await admin.from("audit_logs").insert({
     actor_user_id: auth.user.id,
     organization_id: profile.organization_id,
     action: "order.created",
