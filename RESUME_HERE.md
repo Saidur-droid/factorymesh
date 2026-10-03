@@ -36,7 +36,7 @@ The interactive demo is available at `/demo` when the app is running.
 - Private tech-pack storage flow
 - Validation and API routes
 - Security headers
-- Health endpoint
+- Liveness and production-readiness endpoints
 - CI quality gate
 - Playwright browser E2E
 - Full product/business/architecture/GTM/red-team documentation
@@ -157,12 +157,12 @@ Do NOT say “100% production-live” merely because CI is green.
 FactoryMesh reaches the current launch definition of 100% only when:
 
 1. Dedicated Supabase production project exists.
-2. Migrations are applied and advisors checked.
+2. All migrations including `004_lock_trust_sensitive_mutations.sql` are applied and advisors checked.
 3. Real Auth/DB/Storage work.
 4. Vercel production deployment is live.
 5. Real buyer + factory account E2E passes.
 6. Cross-tenant and concurrent reservation checks pass.
-7. Runtime logs show no unresolved launch-blocking errors.
+7. `/api/readiness` reports ready and runtime logs show no unresolved launch-blocking errors.
 
 ## What to tell ChatGPT next time
 

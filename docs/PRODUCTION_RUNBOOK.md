@@ -23,6 +23,7 @@ Apply migrations in order:
 1. `001_initial_schema.sql`
 2. `002_harden_reservations_and_storage.sql`
 3. `003_data_api_grants_and_capacity_privacy.sql`
+4. `004_lock_trust_sensitive_mutations.sql`
 
 After migrations:
 
@@ -31,6 +32,7 @@ After migrations:
 - verify factories can only read orders assigned to them;
 - verify factories cannot read competitor capacity;
 - verify buyers can read executable network capacity;
+- verify authenticated browser clients cannot directly mutate profiles, factory trust metadata, orders, capacity, production events or audit logs;
 - verify two concurrent reservation attempts cannot overbook one slot;
 - verify `tech-packs` is private.
 
@@ -119,7 +121,8 @@ Before external production traffic:
 
 - enable hosting runtime/build logs;
 - configure error alerting;
-- monitor `/api/health`;
+- monitor `/api/health` for liveness;
+- monitor `/api/readiness` for production dependency readiness;
 - alert on 5xx rate and auth failures;
 - monitor database/storage usage;
 - add product analytics without collecting tech-pack content or unnecessary personal data.
@@ -152,6 +155,7 @@ Local legal counsel should review buyer/factory terms, privacy terms and liabili
 Do not call the system production-live until all are true:
 
 - latest main-branch CI green;
+- `/api/readiness` returns HTTP 200 in production;
 - dedicated production Supabase project provisioned;
 - all migrations applied successfully;
 - production env secrets configured;

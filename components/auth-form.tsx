@@ -26,13 +26,19 @@ export function AuthForm() {
         router.refresh();
       }
     } else {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding` },
       });
-      setMessage(error ? error.message : "Account created. Check your email if confirmation is enabled, then continue to onboarding.");
-      if (!error) router.push("/onboarding");
+      if (error) {
+        setMessage(error.message);
+      } else if (data.session) {
+        router.push("/onboarding");
+        router.refresh();
+      } else {
+        setMessage("Account created. Check your email to verify the account, then continue to onboarding.");
+      }
     }
 
     setBusy(false);

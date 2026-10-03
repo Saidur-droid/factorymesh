@@ -14,13 +14,26 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     return Response.json({ error: "orderId and positive integer units are required" }, { status: 400 });
   }
 
-  const { data: order } = await supabase
-    .from("orders")
-    .select("id,buyer_organization_id,quantity,status")
-    .eq("id", orderId)
-    .single();
+  const [{ data: order }, { data: profile }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id,buyer_organization_id,quantity,status")
+      .eq("id", orderId)
+      .single(),
+    supabase
+      .from("profiles")
+      .select("organization_id,role")
+      .eq("id", auth.user.id)
+      .single(),
+  ]);
 
   if (!order) return Response.json({ error: "Order not found or inaccessible" }, { status: 404 });
+  if (!profile || !["buyer", "operator", "admin"].includes(profile.role)) {
+    return Response.json({ error: "This account cannot reserve buyer orders" }, { status: 403 });
+  }
+  if (profile.role === "buyer" && profile.organization_id !== order.buyer_organization_id) {
+    return Response.json({ error: "Order does not belong to this buyer organization" }, { status: 403 });
+  }
   if (!["submitted", "matching", "reserved"].includes(order.status)) {
     return Response.json({ error: "Order cannot be reserved in its current state" }, { status: 409 });
   }

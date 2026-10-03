@@ -12,12 +12,25 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "Invalid confirmation" }, { status: 400 });
 
-  const { data: order } = await supabase
-    .from("orders")
-    .select("id,buyer_organization_id")
-    .eq("id", parsed.data.orderId)
-    .single();
+  const [{ data: order }, { data: profile }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id,buyer_organization_id")
+      .eq("id", parsed.data.orderId)
+      .single(),
+    supabase
+      .from("profiles")
+      .select("organization_id,role")
+      .eq("id", auth.user.id)
+      .single(),
+  ]);
   if (!order) return Response.json({ error: "Order not found or inaccessible" }, { status: 404 });
+  if (!profile || !["buyer", "operator", "admin"].includes(profile.role)) {
+    return Response.json({ error: "This account cannot attach buyer tech packs" }, { status: 403 });
+  }
+  if (profile.role === "buyer" && profile.organization_id !== order.buyer_organization_id) {
+    return Response.json({ error: "Order does not belong to this buyer organization" }, { status: 403 });
+  }
 
   if (!parsed.data.path.startsWith(`${order.buyer_organization_id}/${order.id}/`)) {
     return Response.json({ error: "Upload path does not belong to this order" }, { status: 403 });

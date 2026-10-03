@@ -8,13 +8,29 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data: order } = await supabase
-    .from("orders")
-    .select("id,buyer_organization_id,product_category,quantity,target_unit_price,required_delivery_date,compliance_requirements")
-    .eq("id", id)
-    .single();
+  const [{ data: order }, { data: profile }] = await Promise.all([
+    supabase
+      .from("orders")
+      .select("id,buyer_organization_id,product_category,quantity,target_unit_price,required_delivery_date,compliance_requirements,status")
+      .eq("id", id)
+      .single(),
+    supabase
+      .from("profiles")
+      .select("organization_id,role")
+      .eq("id", auth.user.id)
+      .single(),
+  ]);
 
   if (!order) return Response.json({ error: "Order not found" }, { status: 404 });
+  if (!profile || !["buyer", "operator", "admin"].includes(profile.role)) {
+    return Response.json({ error: "This account cannot route buyer orders" }, { status: 403 });
+  }
+  if (profile.role === "buyer" && profile.organization_id !== order.buyer_organization_id) {
+    return Response.json({ error: "Order does not belong to this buyer organization" }, { status: 403 });
+  }
+  if (!["submitted", "matching"].includes(order.status)) {
+    return Response.json({ error: "Order cannot be routed in its current state" }, { status: 409 });
+  }
 
   const admin = createSupabaseAdminClient();
   const { data: rows, error } = await admin

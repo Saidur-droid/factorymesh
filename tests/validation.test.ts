@@ -28,3 +28,27 @@ test("capacity rejects inverted dates", () => {
   });
   assert.equal(parsed.success, false);
 });
+
+
+test("capacity does not accept self-reported confidence or source", () => {
+  const parsed = capacitySlotSchema.parse({
+    startsOn: "2026-12-01",
+    endsOn: "2026-12-10",
+    productCategory: "Hoodies",
+    availableUnits: 50000,
+    confidence: 99,
+    source: "api",
+  });
+  assert.equal("confidence" in parsed, false);
+  assert.equal("source" in parsed, false);
+});
+
+test("capacity requires a positive unit count", () => {
+  const parsed = capacitySlotSchema.safeParse({
+    startsOn: "2026-12-01",
+    endsOn: "2026-12-10",
+    productCategory: "Hoodies",
+    availableUnits: 0,
+  });
+  assert.equal(parsed.success, false);
+});

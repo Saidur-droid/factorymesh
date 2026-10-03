@@ -23,8 +23,6 @@ export function CapacityForm() {
         lineType: form.get("lineType") || undefined,
         productCategory: form.get("productCategory"),
         availableUnits: form.get("availableUnits"),
-        confidence: form.get("confidence") || 70,
-        source: "manual",
       }),
     });
 
@@ -32,7 +30,7 @@ export function CapacityForm() {
     if (!response.ok) setMessage(body.error ?? "Unable to publish capacity");
     else {
       event.currentTarget.reset();
-      setMessage("Capacity slot published.");
+      setMessage("Capacity slot published for verification.");
       router.refresh();
     }
     setBusy(false);
@@ -44,12 +42,12 @@ export function CapacityForm() {
         <label>Product category<input name="productCategory" required placeholder="Hoodies" /></label>
         <label>Line / capability<input name="lineType" placeholder="Knit sewing line" /></label>
       </div>
-      <div className="form-grid four">
+      <div className="form-grid three">
         <label>Starts<input name="startsOn" type="date" required /></label>
         <label>Ends<input name="endsOn" type="date" required /></label>
-        <label>Available units<input name="availableUnits" type="number" min="0" required /></label>
-        <label>Confidence %<input name="confidence" type="number" min="0" max="100" defaultValue="70" /></label>
+        <label>Available units<input name="availableUnits" type="number" min="1" required /></label>
       </div>
+      <p className="muted">FactoryMesh assigns trust/confidence from verification and outcome history. Factories cannot self-score confidence.</p>
       <div className="form-actions"><button disabled={busy}>{busy ? "Publishing…" : "Publish capacity"}</button>{message && <span role="status">{message}</span>}</div>
     </form>
   );
