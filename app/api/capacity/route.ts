@@ -55,8 +55,8 @@ export async function POST(request: Request) {
       line_type: input.lineType ?? null,
       product_category: input.productCategory,
       available_units: input.availableUnits,
-      confidence: input.confidence,
-      source: input.source,
+      confidence: 50,
+      source: "manual",
     })
     .select("id,status,created_at")
     .single();
