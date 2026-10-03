@@ -100,3 +100,22 @@ Post-submission FactoryMesh priority:
 7. premium, non-generic product UX polish across the real buyer/factory/operator workflow.
 
 Design rule: do not replace the product with a generic competition landing page. Product polish must strengthen the actual manufacturing workflow, trust, clarity and execution quality.
+
+## 2026-10-03 — Production-live before Ideathon submission (supersedes earlier sequence decision)
+
+Decision: Finish FactoryMesh production-live verification before submitting Ideathon Bangladesh Stage 1.
+
+Reason: The founder explicitly changed the execution sequence after the earlier same-day decision. The repo and launch runbook remain the source of truth for what “production-live” means, and the product must not be described as 100% production-live until every launch gate has actually passed.
+
+Immediate sequence:
+1. provision dedicated production Supabase infrastructure;
+2. apply migrations and configure real Auth / DB / private Storage;
+3. connect and deploy `main` on Vercel with production secrets;
+4. configure production domain and Auth redirects;
+5. pass `/api/readiness`;
+6. run real Buyer and Factory accounts through the end-to-end workflow;
+7. pass tenant-isolation, concurrent-reservation and private-tech-pack checks;
+8. inspect production logs/security findings and clear launch blockers;
+9. only then finalize and submit Ideathon Bangladesh materials using the accurate current product status.
+
+Until those gates pass, the accurate external status remains **working MVP / pre-commercial validation**.
