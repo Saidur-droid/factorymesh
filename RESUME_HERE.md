@@ -27,9 +27,12 @@ Verified from the Supabase dashboard:
 - dedicated project created: `factorymesh-prod`;
 - region: Southeast Asia (Singapore / `ap-southeast-1`);
 - project status: Healthy;
-- current database state at creation: no migrations applied yet.
+- production migrations `20261003000100` → `20261003000400` applied successfully via the dedicated GitHub Actions Supabase production workflow;
+- Supabase migration history verified with local/remote versions matching exactly;
+- public schema verified to contain the expected eight FactoryMesh tables;
+- latest main CI after the production-workflow merge is green.
 
-This satisfies only the **dedicated production Supabase project provisioned** launch prerequisite. It does **not** mean FactoryMesh is production-live. Continue with migrations, Auth/Storage, Vercel deployment and real production verification below.
+This satisfies the **dedicated production Supabase project provisioned** and **migrations applied** launch prerequisites. It does **not** mean FactoryMesh is production-live. Continue with Auth/Storage verification, Vercel deployment and real production verification below.
 
 ## What is already implemented
 
@@ -61,22 +64,24 @@ These are infrastructure/account tasks, not missing core product code.
 
 The dedicated project `factorymesh-prod` now exists and is Healthy in Southeast Asia (Singapore / `ap-southeast-1`). Do not replace or reuse it for unrelated applications.
 
-### 2. Apply database migrations
+### 2. Apply database migrations — DONE
 
-Apply every migration under:
+Applied successfully to `factorymesh-prod`:
 
-`supabase/migrations/`
+1. `20261003000100_initial_schema.sql`
+2. `20261003000200_harden_reservations_and_storage.sql`
+3. `20261003000300_data_api_grants_and_capacity_privacy.sql`
+4. `20261003000400_lock_trust_sensitive_mutations.sql`
 
-Then verify:
+Verification evidence:
 
-- all public/exposed tables have RLS enabled
-- Data API grants are correct
-- reservation RPC/function permissions are restricted correctly
-- storage policies prevent cross-organization access
-- buyer cannot read another buyer's orders
-- factory cannot modify another factory's capacity
+- dedicated `.github/workflows/supabase-production.yml` linked the production project;
+- dry-run listed exactly the four pending migrations;
+- `supabase db push` applied all four successfully;
+- `supabase migration list` showed identical Local/Remote versions;
+- Supabase Table Editor shows the expected public tables.
 
-Run Supabase security and performance advisors after schema deployment and fix meaningful findings before launch.
+Still required before launch: RLS/privilege behavior tests, private storage tests, and Supabase security/performance advisor review.
 
 ### 3. Configure real Supabase/Auth/Storage
 
