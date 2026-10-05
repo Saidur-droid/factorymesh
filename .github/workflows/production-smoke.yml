@@ -1,0 +1,50 @@
+name: Production Smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-smoke
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Wait for Vercel production deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="https://factorymesh.vercel.app"
+
+          check() {
+            path="$1"
+            expected="$2"
+            for attempt in $(seq 1 24); do
+              body_file="$(mktemp)"
+              code="$(curl -sS -L --connect-timeout 10 --max-time 20 -o "$body_file" -w "%{http_code}" "$base$path" || true)"
+              body="$(cat "$body_file" || true)"
+              rm -f "$body_file"
+
+              if [ "$code" = "200" ] && printf '%s' "$body" | grep -Fq "$expected"; then
+                echo "$path is healthy (HTTP 200)"
+                return 0
+              fi
+
+              echo "Attempt $attempt: $path returned HTTP $code; waiting for production deployment..."
+              sleep 10
+            done
+
+            echo "::error::$path did not become healthy"
+            return 1
+          }
+
+          check "/" "<"
+          check "/api/health" '"ok":true'
+          check "/api/readiness" '"ready":true'
