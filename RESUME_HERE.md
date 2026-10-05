@@ -19,6 +19,18 @@ The browser E2E covers:
 
 The interactive demo is available at `/demo` when the app is running.
 
+
+## Production infrastructure progress — 2026-10-05
+
+Verified from the Supabase dashboard:
+
+- dedicated project created: `factorymesh-prod`;
+- region: Southeast Asia (Singapore / `ap-southeast-1`);
+- project status: Healthy;
+- current database state at creation: no migrations applied yet.
+
+This satisfies only the **dedicated production Supabase project provisioned** launch prerequisite. It does **not** mean FactoryMesh is production-live. Continue with migrations, Auth/Storage, Vercel deployment and real production verification below.
+
 ## What is already implemented
 
 - Next.js + TypeScript application
@@ -45,27 +57,9 @@ The interactive demo is available at `/demo` when the app is running.
 
 These are infrastructure/account tasks, not missing core product code.
 
-### 1. Create a dedicated Supabase project
+### 1. Dedicated Supabase production project — DONE
 
-Do NOT reuse another startup/project database.
-
-Known Supabase organization from the previous session:
-
-`yjqwythragekbcbmbzmz`
-
-Before creating the project, the user must explicitly choose/confirm:
-
-- organization
-- region
-- any recurring cost shown by Supabase
-
-Suggested project name:
-
-`factorymesh-prod`
-
-Suggested region for Bangladesh-first launch if available and appropriate:
-
-`ap-southeast-1`
+The dedicated project `factorymesh-prod` now exists and is Healthy in Southeast Asia (Singapore / `ap-southeast-1`). Do not replace or reuse it for unrelated applications.
 
 ### 2. Apply database migrations
 
