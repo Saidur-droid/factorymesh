@@ -45,9 +45,13 @@ export async function POST(
   const trust = resolveCapacityTrust(Number(existing.confidence ?? 0), decision);
   const { data: capacity, error } = await admin
     .from("capacity_slots")
-    .update(trust)
+    .update({
+      ...trust,
+      last_verified_at: decision === "verified" ? new Date().toISOString() : null,
+      last_verified_by: decision === "verified" ? auth.user.id : null,
+    })
     .eq("id", id)
-    .select("id,factory_id,confidence,source,updated_at")
+    .select("id,factory_id,confidence,source,last_verified_at,last_verified_by,updated_at")
     .single();
 
   if (error || !capacity) {
