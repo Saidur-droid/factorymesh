@@ -1,0 +1,3 @@
+# Supabase CLI project configuration.
+# Production project binding is managed by the Supabase GitHub integration.
+project_id = "factorymesh-prod"
