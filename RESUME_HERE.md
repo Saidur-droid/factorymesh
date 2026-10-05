@@ -28,11 +28,16 @@ Verified from the Supabase dashboard:
 - region: Southeast Asia (Singapore / `ap-southeast-1`);
 - project status: Healthy;
 - production migrations `20261003000100` → `20261003000400` applied successfully via the dedicated GitHub Actions Supabase production workflow;
-- Supabase migration history verified with local/remote versions matching exactly;
+- follow-up migration `20261005000100_grant_service_role_runtime_privileges.sql` applied successfully to make trusted server runtime access explicit;
+- Supabase migration history verified with local/remote versions matching;
 - public schema verified to contain the expected eight FactoryMesh tables;
-- latest main CI after the production-workflow merge is green.
+- private `tech-packs` bucket verified with 25 MB and MIME restrictions;
+- Vercel production deployment live at `https://factorymesh.vercel.app`;
+- production smoke verification passes for `/`, `/api/health`, and `/api/readiness` (HTTP 200);
+- real production launch verification passes using temporary, clearly labelled `[E2E TEST]` accounts and cleans fixtures afterward;
+- latest main CI, production smoke, and production launch verification are green.
 
-This satisfies the **dedicated production Supabase project provisioned** and **migrations applied** launch prerequisites. It does **not** mean FactoryMesh is production-live. Continue with Auth/Storage verification, Vercel deployment and real production verification below.
+This satisfies the **dedicated production Supabase**, **migrations**, **Vercel deployment**, **readiness**, and **real Buyer/Factory E2E/security verification** launch prerequisites. Do not call FactoryMesh 100% production-live yet: final production Auth URL configuration plus advisor/runtime-log review remain launch gates.
 
 ## What is already implemented
 
@@ -72,6 +77,7 @@ Applied successfully to `factorymesh-prod`:
 2. `20261003000200_harden_reservations_and_storage.sql`
 3. `20261003000300_data_api_grants_and_capacity_privacy.sql`
 4. `20261003000400_lock_trust_sensitive_mutations.sql`
+5. `20261005000100_grant_service_role_runtime_privileges.sql`
 
 Verification evidence:
 
@@ -81,60 +87,57 @@ Verification evidence:
 - `supabase migration list` showed identical Local/Remote versions;
 - Supabase Table Editor shows the expected public tables.
 
-Still required before launch: RLS/privilege behavior tests, private storage tests, and Supabase security/performance advisor review.
+RLS/privilege behavior, private storage, Buyer/Factory isolation, and reservation concurrency are now verified by the real production launch workflow. Still required before launch: Supabase security/performance advisor review.
 
-### 3. Configure real Supabase/Auth/Storage
+### 3. Configure real Supabase/Auth/Storage — PARTIAL
 
-Obtain the production project's:
+Verified:
 
-- project URL
-- publishable key
+- production project URL/publishable/secret server credentials are configured in Vercel Production;
+- privileged Supabase key is server-only;
+- private `tech-packs` bucket exists with file-size and MIME restrictions;
+- signed tech-pack authorization, real upload, confirmation, signed download, cross-buyer denial, invalid MIME rejection, and oversize rejection pass in production.
 
-Configure the application environment variables from `.env.example`.
+Still required:
 
-Never expose a Supabase secret/service-role key through `NEXT_PUBLIC_*` variables.
+- replace the temporary localhost Supabase Auth Site URL with `https://factorymesh.vercel.app`;
+- add production redirect URLs:
+  - `https://factorymesh.vercel.app/auth/callback`
+  - `https://factorymesh.vercel.app/auth/confirm`.
 
-Configure production Auth redirect URLs for the final deployment domain.
+### 4. Create/import the Vercel project — DONE
 
-Confirm private tech-pack bucket/policies work with signed upload/download flows.
+- Vercel team: `saidur-droids-projects`
+- repo: `Saidur-droid/factorymesh`
+- project: `factorymesh`
+- production domain: `https://factorymesh.vercel.app`
+- required Production-only environment variables configured
+- `main` deploys successfully
+- automated production smoke verification is green
 
-### 4. Create/import the Vercel project
+### 5. Live smoke/E2E test on the real deployment — VERIFIED
 
-Known Vercel team from the previous session:
+Automated against `https://factorymesh.vercel.app` with real temporary production Auth accounts and cleanup:
 
-`saidur-droids-projects`
+1. Landing page returns HTTP 200.
+2. `/api/health` returns HTTP 200.
+3. `/api/readiness` returns HTTP 200 and `ready: true`.
+4. Real Buyer A and Buyer B accounts authenticate and onboard.
+5. Real Factory A and Factory B accounts authenticate and onboard.
+6. Factory A publishes production capacity.
+7. Factory isolation is enforced.
+8. Buyer A and Buyer B create independent real test production orders.
+9. Buyer A cannot read/route/upload/download Buyer B data and vice versa.
+10. Routing produces executable matches.
+11. Two concurrent 80-unit reservations race against one 100-unit slot: exactly one succeeds and the other receives conflict; reserved capacity remains 80, proving no double-book.
+12. Private tech-pack valid upload + confirmation + signed download works.
+13. Invalid MIME and >25 MB tech-pack requests are rejected.
+14. Factory B cannot see/operate Factory A's assigned order.
+15. Factory A records production, QC, and shipment events; the winning Buyer sees them.
+16. Authenticated browser clients cannot directly mutate trust-sensitive order/capacity state.
+17. All `[E2E TEST]` fixtures are removed after the run.
 
-Import/connect:
-
-`Saidur-droid/factorymesh`
-
-Suggested Vercel project name:
-
-`factorymesh`
-
-Set all required production environment variables.
-
-Deploy `main` to production.
-
-### 5. Live smoke/E2E test on the real deployment
-
-After deployment, verify as a real user, not just via build output:
-
-1. Landing page loads.
-2. `/demo` loads without console/runtime errors.
-3. Demo flow completes end-to-end.
-4. Create a real Buyer test account.
-5. Complete buyer onboarding.
-6. Create a real Factory test account.
-7. Complete factory onboarding.
-8. Publish a real test capacity slot.
-9. Buyer creates a test production order.
-10. Routing returns only allowed executable capacity.
-11. Reserve the slot.
-12. Verify another concurrent reservation cannot double-book the same capacity.
-13. Record production/QC/shipment events.
-14. Verify cross-tenant isolation from both accounts.
-15. Check `/api/health` and Vercel runtime logs for errors.
+Production Launch Verification run is green. Vercel/Supabase runtime log and advisor review remains separate.
 
 ### 6. Final production hardening checks
 
