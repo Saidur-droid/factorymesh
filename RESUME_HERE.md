@@ -29,15 +29,20 @@ Verified from the Supabase dashboard:
 - project status: Healthy;
 - production migrations `20261003000100` → `20261003000400` applied successfully via the dedicated GitHub Actions Supabase production workflow;
 - follow-up migration `20261005000100_grant_service_role_runtime_privileges.sql` applied successfully to make trusted server runtime access explicit;
+- hardening migration `20261005000200_harden_security_advisors_and_fk_indexes.sql` applied successfully;
+- Supabase Security Advisor is now clean (zero lints);
+- Supabase Performance Advisor has no WARN/ERROR launch findings; only INFO-level unused-index observations on this fresh project;
 - Supabase migration history verified with local/remote versions matching;
 - public schema verified to contain the expected eight FactoryMesh tables;
 - private `tech-packs` bucket verified with 25 MB and MIME restrictions;
 - Vercel production deployment live at `https://factorymesh.vercel.app`;
 - production smoke verification passes for `/`, `/api/health`, and `/api/readiness` (HTTP 200);
 - real production launch verification passes using temporary, clearly labelled `[E2E TEST]` accounts and cleans fixtures afterward;
-- latest main CI, production smoke, and production launch verification are green.
+- Vercel `APP_ENV` is now scoped to Production only;
+- latest security-hardening commit deployed to Vercel Production in READY state;
+- latest main CI and production smoke are green.
 
-This satisfies the **dedicated production Supabase**, **migrations**, **Vercel deployment**, **readiness**, and **real Buyer/Factory E2E/security verification** launch prerequisites. Do not call FactoryMesh 100% production-live yet: final production Auth URL configuration plus advisor/runtime-log review remain launch gates.
+This satisfies the **dedicated production Supabase**, **migrations**, **Vercel deployment**, **readiness**, **Supabase advisor hardening**, and **real Buyer/Factory E2E/security verification** launch prerequisites. Do not call FactoryMesh 100% production-live yet: the hosted Supabase Auth production redirect configuration remains a confirmed launch blocker, and the Vercel connector's runtime-log endpoint is currently permission-blocked.
 
 ### Final sign-off attempt — 2026-10-05
 
@@ -48,9 +53,11 @@ The repository's existing `SUPABASE_ACCESS_TOKEN` is valid for the production mi
 - `/v1/projects/<project-ref>/config/auth`
 - `/v1/projects/<project-ref>/advisors/security`
 
-Therefore these final two Supabase checks are currently **account/token-permission blocked**, not application-code blocked. Do not mark them verified until a Supabase account/token with project Auth/advisor permissions is connected or the checks are completed from the Supabase dashboard.
+The connected Supabase app now provides direct Advisor access, so the advisor blocker was removed and all Security Advisor findings were fixed through migration `20261005000200`.
 
-The production smoke workflow remains green while this permission blocker is unresolved.
+The hosted Auth config itself is still not exposed as a write action by the connected Supabase tool surface. A new real production probe was added to `.github/workflows/production-e2e.yml`: it uses Supabase Admin `generateLink` without sending mail and checks the resolved redirect. Fresh evidence confirmed that requesting `https://factorymesh.vercel.app/auth/callback?next=/onboarding` currently resolves to `http://localhost:3000`. Therefore the production Auth redirect is **confirmed misconfigured**, not merely unverified.
+
+The production smoke workflow remains green while this control-plane blocker is unresolved.
 
 ## What is already implemented
 
@@ -91,6 +98,7 @@ Applied successfully to `factorymesh-prod`:
 3. `20261003000300_data_api_grants_and_capacity_privacy.sql`
 4. `20261003000400_lock_trust_sensitive_mutations.sql`
 5. `20261005000100_grant_service_role_runtime_privileges.sql`
+6. `20261005000200_harden_security_advisors_and_fk_indexes.sql`
 
 Verification evidence:
 
@@ -100,7 +108,7 @@ Verification evidence:
 - `supabase migration list` showed identical Local/Remote versions;
 - Supabase Table Editor shows the expected public tables.
 
-RLS/privilege behavior, private storage, Buyer/Factory isolation, and reservation concurrency are now verified by the real production launch workflow. Still required before launch: Supabase security/performance advisor review. The automated advisor call currently receives HTTP 403 from the existing Supabase access token, so this is an external permission blocker.
+RLS/privilege behavior, private storage, Buyer/Factory isolation, and reservation concurrency are verified by the real production launch workflow. Supabase Security Advisor is clean after migration `20261005000200`. Performance Advisor has no WARN/ERROR findings; only INFO-level unused-index observations remain, which are expected on a newly created project.
 
 ### 3. Configure real Supabase/Auth/Storage — PARTIAL
 
@@ -111,14 +119,16 @@ Verified:
 - private `tech-packs` bucket exists with file-size and MIME restrictions;
 - signed tech-pack authorization, real upload, confirmation, signed download, cross-buyer denial, invalid MIME rejection, and oversize rejection pass in production.
 
-Still required (currently blocked by Supabase Management API permission on the connected token):
+Still required:
 
-- verify/replace the temporary localhost Supabase Auth Site URL with `https://factorymesh.vercel.app`;
-- verify/add production redirect URLs:
+- set the hosted Supabase Auth Site URL to `https://factorymesh.vercel.app`;
+- allow production redirect URLs:
   - `https://factorymesh.vercel.app/auth/callback`
   - `https://factorymesh.vercel.app/auth/confirm`.
 
-The automated sign-off workflow attempts this safely and reports the permission block instead of pretending the configuration is verified.
+This is now a **confirmed configuration defect**. The production Auth redirect probe requested `https://factorymesh.vercel.app/auth/callback?next=/onboarding` and Supabase resolved it to `http://localhost:3000`.
+
+The connected Supabase app can operate the database, migrations, logs, and advisors, but its current tool surface does not expose hosted Auth URL configuration writes.
 
 ### 4. Create/import the Vercel project — DONE
 
@@ -152,7 +162,9 @@ Automated against `https://factorymesh.vercel.app` with real temporary productio
 16. Authenticated browser clients cannot directly mutate trust-sensitive order/capacity state.
 17. All `[E2E TEST]` fixtures are removed after the run.
 
-Production Launch Verification run is green. Vercel/Supabase runtime log and advisor review remains separate.
+A prior complete Production Launch Verification run is green. The workflow now also contains an explicit production Auth redirect gate so future verification cannot be marked green while Supabase resolves production email actions back to localhost.
+
+Supabase post-hardening logs for the checked recent window contain no ERROR/FATAL/PANIC entries. Vercel's connected runtime-log endpoints currently return a connector authorization 403 even though project/deployment/env operations work; production smoke and deployment readiness remain independently green.
 
 ### 6. Final production hardening checks
 
