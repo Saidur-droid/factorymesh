@@ -58,7 +58,7 @@ async function loginAndOnboard(browser, identity, role, org) {
   await page.goto('/login');
   await page.getByLabel('Email').fill(identity.email);
   await page.getByLabel('Password').fill(identity.password);
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.locator('form.auth-form button[type="submit"]').click();
   await page.waitForURL((url) => ['/dashboard', '/onboarding'].includes(url.pathname), { timeout: 30_000 });
 
   if (new URL(page.url()).pathname === '/onboarding') {
