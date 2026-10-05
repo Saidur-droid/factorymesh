@@ -29,9 +29,13 @@ export async function POST(
   const admin = createSupabaseAdminClient();
   const { data: factory, error } = await admin
     .from("factories")
-    .update({ verified: body.verified })
+    .update({
+      verified: body.verified,
+      verified_at: body.verified ? new Date().toISOString() : null,
+      verified_by: body.verified ? auth.user.id : null,
+    })
     .eq("id", id)
-    .select("id,organization_id,legal_name,verified,updated_at")
+    .select("id,organization_id,legal_name,verified,verified_at,verified_by,updated_at")
     .single();
 
   if (error || !factory) {
