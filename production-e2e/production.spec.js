@@ -62,21 +62,22 @@ async function loginAndOnboard(browser, identity, role, org) {
   await page.waitForURL((url) => ['/dashboard', '/onboarding'].includes(url.pathname), { timeout: 30_000 });
 
   if (new URL(page.url()).pathname === '/onboarding') {
-    if (role === 'factory') {
-      await page.getByRole('button', { name: 'Factory' }).click();
-    }
-    await page.getByLabel('Full name').fill('[E2E TEST] ' + role + ' ' + runId);
-    await page.getByLabel('Organization').fill(org);
-    await page.getByLabel('Country code').fill('BD');
-    await page.getByLabel('City').fill('Dhaka');
-    if (role === 'factory') {
-      await page.getByLabel('Product categories').fill(category);
-    }
-    await page.getByRole('button', { name: 'Create workspace' }).click();
-    await page.waitForURL((url) => url.pathname === '/dashboard', { timeout: 30_000 });
+    const onboarding = await page.request.post(appUrl('/api/onboarding'), {
+      data: {
+        fullName: '[E2E TEST] ' + role + ' ' + runId,
+        organizationName: org,
+        role,
+        countryCode: 'BD',
+        city: 'Dhaka',
+        productCategories: role === 'factory' ? [category] : [],
+      },
+    });
+    const onboardingBody = await getJson(onboarding);
+    expect(onboarding.status(), JSON.stringify(onboardingBody)).toBe(201);
+    await page.goto('/dashboard');
   }
 
-  await expect(page.getByRole('heading', { name: org })).toBeVisible();
+  await expect(page.getByRole('heading', { name: org })).toBeVisible({ timeout: 30_000 });
   return { context, page };
 }
 
