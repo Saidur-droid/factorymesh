@@ -66,6 +66,7 @@ jobs:
           echo "SUPABASE_TEST_PUBLISHABLE_KEY=$publishable_key" >> "$GITHUB_ENV"
 
       - name: Verify production Auth redirect allow-list
+        id: auth_redirect
         shell: bash
         run: |
           set -euo pipefail
@@ -102,9 +103,18 @@ jobs:
               console.log('Resolved Auth redirect:', actual || '(missing)')
 
               if (actual !== expected) {
-                throw new Error(
+                console.error(
                   'Production Auth redirect is not allow-listed. Expected ' +
                   expected + ' but Supabase resolved ' + String(actual)
+                )
+                require('node:fs').appendFileSync(
+                  process.env.GITHUB_OUTPUT,
+                  'status=misconfigured\n'
+                )
+              } else {
+                require('node:fs').appendFileSync(
+                  process.env.GITHUB_OUTPUT,
+                  'status=verified\n'
                 )
               }
             } finally {
@@ -131,3 +141,16 @@ jobs:
 
       - name: Run real production launch verification
         run: npx playwright test -c playwright.production.config.js
+
+      - name: Enforce production Auth redirect gate
+        if: always()
+        env:
+          AUTH_REDIRECT_STATUS: ${{ steps.auth_redirect.outputs.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Production Auth redirect status: ${AUTH_REDIRECT_STATUS:-unknown}"
+          [ "${AUTH_REDIRECT_STATUS:-unknown}" = "verified" ] || {
+            echo "::error::Production Auth redirect allow-list is not correctly configured."
+            exit 1
+          }
