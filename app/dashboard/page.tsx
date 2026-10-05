@@ -4,6 +4,7 @@ import { OrderActions } from "@/components/order-actions";
 import { ProductionBriefForm } from "@/components/production-brief-form";
 import { ProductionEventForm } from "@/components/production-event-form";
 import { TechPackUploader } from "@/components/tech-pack-uploader";
+import { OperatorVerificationPanel } from "@/components/operator-verification-panel";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +26,9 @@ export default async function DashboardPage() {
   const role = profile.role as "buyer" | "factory" | "operator" | "admin";
   const isBuyer = role === "buyer" || role === "operator" || role === "admin";
   const isFactory = role === "factory";
+  const isOperator = role === "operator" || role === "admin";
 
-  const [{ data: orders }, { data: capacity }] = await Promise.all([
+  const [{ data: orders }, { data: capacity }, { data: factories }] = await Promise.all([
     supabase
       .from("orders")
       .select("id,title,product_category,quantity,target_unit_price,currency,required_delivery_date,status,assigned_factory_id,tech_pack_path,created_at")
@@ -38,6 +40,13 @@ export default async function DashboardPage() {
       .gte("ends_on", new Date().toISOString().slice(0, 10))
       .order("starts_on", { ascending: true })
       .limit(100),
+    isOperator
+      ? supabase
+          .from("factories")
+          .select("id,legal_name,verified,city,country_code")
+          .order("legal_name", { ascending: true })
+          .limit(200)
+      : Promise.resolve({ data: [] }),
   ]);
 
   const organization = Array.isArray(profile.organizations) ? profile.organizations[0] : profile.organizations;
@@ -70,6 +79,37 @@ export default async function DashboardPage() {
         <section className="workspace-panel">
           <div className="section-heading"><div><span className="eyebrow">Supply</span><h2>Publish production capacity</h2></div><span className="status">Factory workflow</span></div>
           <CapacityForm />
+        </section>
+      )}
+
+
+      {isOperator && (
+        <section className="workspace-panel">
+          <div className="section-heading">
+            <div>
+              <span className="eyebrow">Trust operations</span>
+              <h2>Factory & capacity verification</h2>
+            </div>
+            <span className="status">Operator workflow</span>
+          </div>
+          <OperatorVerificationPanel
+            factories={(factories ?? []).map((factory: any) => ({
+              id: factory.id,
+              legalName: factory.legal_name,
+              verified: Boolean(factory.verified),
+              city: factory.city ?? null,
+              countryCode: factory.country_code,
+            }))}
+            capacity={(capacity ?? []).map((slot: any) => ({
+              id: slot.id,
+              factoryId: slot.factory_id,
+              productCategory: slot.product_category ?? null,
+              startsOn: slot.starts_on,
+              endsOn: slot.ends_on,
+              confidence: Number(slot.confidence ?? 0),
+              source: slot.source,
+            }))}
+          />
         </section>
       )}
 
