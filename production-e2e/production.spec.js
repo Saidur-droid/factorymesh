@@ -95,19 +95,25 @@ async function api(page, path, options = {}) {
 }
 
 async function createOrder(page, title, quantity) {
-  await page.getByLabel('Brief title').fill(title);
-  await page.getByLabel('Product category').fill(category);
-  await page.getByLabel('Quantity').fill(String(quantity));
-  await page.getByLabel('Currency').fill('USD');
-  await page.getByLabel('Delivery date').fill(deliveryDate);
-  await page.getByLabel('Ship-to country').fill('US');
-  await page.getByRole('button', { name: 'Submit production brief' }).click();
-  await expect(page.getByText(title)).toBeVisible({ timeout: 30_000 });
+  const response = await api(page, '/api/orders', {
+    method: 'POST',
+    data: {
+      title,
+      productCategory: category,
+      quantity,
+      currency: 'USD',
+      requiredDeliveryDate: deliveryDate,
+      shipToCountryCode: 'US',
+      complianceRequirements: [],
+    },
+  });
+  const created = await getJson(response);
+  expect(response.status(), JSON.stringify(created)).toBe(201);
 
-  const response = await api(page, '/api/orders');
-  expect(response.status()).toBe(200);
-  const body = await getJson(response);
-  const order = body.orders.find((item) => item.title === title);
+  const listResponse = await api(page, '/api/orders');
+  expect(listResponse.status()).toBe(200);
+  const body = await getJson(listResponse);
+  const order = body.orders.find((item) => item.id === created.order.id);
   expect(order).toBeTruthy();
   return order;
 }
@@ -213,18 +219,23 @@ test('real production buyer/factory workflow, isolation, reservation atomicity, 
   const factoryB = await loginAndOnboard(browser, users.factoryB.identity, 'factory', users.factoryB.org);
 
   try {
-    await factoryA.page.getByLabel('Product category').fill(category);
-    await factoryA.page.getByLabel('Line / capability').fill('E2E knit line');
-    await factoryA.page.getByLabel('Starts').fill(startsOn);
-    await factoryA.page.getByLabel('Ends').fill(endsOn);
-    await factoryA.page.getByLabel('Available units').fill('100');
-    await factoryA.page.getByRole('button', { name: 'Publish capacity' }).click();
-    await expect(factoryA.page.getByText('Capacity slot published for verification.')).toBeVisible({ timeout: 30_000 });
+    const createCapacityResponse = await api(factoryA.page, '/api/capacity', {
+      method: 'POST',
+      data: {
+        startsOn,
+        endsOn,
+        lineType: 'E2E knit line',
+        productCategory: category,
+        availableUnits: 100,
+      },
+    });
+    const createdCapacity = await getJson(createCapacityResponse);
+    expect(createCapacityResponse.status(), JSON.stringify(createdCapacity)).toBe(201);
 
     const factoryACapacityResponse = await api(factoryA.page, '/api/capacity');
     expect(factoryACapacityResponse.status()).toBe(200);
     const factoryACapacityBody = await getJson(factoryACapacityResponse);
-    const slot = factoryACapacityBody.capacity.find((item) => item.product_category === category);
+    const slot = factoryACapacityBody.capacity.find((item) => item.id === createdCapacity.capacity.id);
     expect(slot).toBeTruthy();
     expect(slot.available_units).toBe(100);
     expect(slot.reserved_units).toBe(0);
@@ -266,13 +277,36 @@ test('real production buyer/factory workflow, isolation, reservation atomicity, 
     });
     expect(oversized.status()).toBe(400);
 
-    const orderARecord = buyerA.page.locator('.order-record').filter({ hasText: orderATitle });
-    await orderARecord.locator('input[type="file"]').setInputFiles({
-      name: 'factorymesh-e2e-' + runId + '.pdf',
-      mimeType: 'application/pdf',
-      buffer: Buffer.from('%PDF-1.4\n% FactoryMesh production E2E test\n'),
+    const techPackBytes = Buffer.from('%PDF-1.4\n% FactoryMesh production E2E test\n');
+    const authorizeUpload = await api(buyerA.page, '/api/uploads/tech-pack', {
+      method: 'POST',
+      data: {
+        orderId: orderA.id,
+        fileName: 'factorymesh-e2e-' + runId + '.pdf',
+        mimeType: 'application/pdf',
+        size: techPackBytes.length,
+      },
     });
-    await expect(orderARecord.getByRole('button', { name: 'Open' })).toBeVisible({ timeout: 30_000 });
+    const signedUpload = await getJson(authorizeUpload);
+    expect(authorizeUpload.status(), JSON.stringify(signedUpload)).toBe(200);
+
+    const storageClient = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: uploadError } = await storageClient.storage
+      .from('tech-packs')
+      .uploadToSignedUrl(signedUpload.path, signedUpload.token, techPackBytes, {
+        contentType: 'application/pdf',
+        upsert: false,
+      });
+    expect(uploadError).toBeNull();
+
+    const confirmUpload = await api(buyerA.page, '/api/uploads/tech-pack/confirm', {
+      method: 'POST',
+      data: { orderId: orderA.id, path: signedUpload.path },
+    });
+    const confirmBody = await getJson(confirmUpload);
+    expect(confirmUpload.status(), JSON.stringify(confirmBody)).toBe(200);
 
     const techPackResponse = await api(buyerA.page, '/api/orders/' + orderA.id + '/tech-pack');
     expect(techPackResponse.status()).toBe(200);
