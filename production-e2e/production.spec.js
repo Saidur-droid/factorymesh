@@ -59,23 +59,23 @@ async function loginAndOnboard(browser, identity, role, org) {
   await page.getByLabel('Email').fill(identity.email);
   await page.getByLabel('Password').fill(identity.password);
   await page.locator('form.auth-form button[type="submit"]').click();
-  await page.waitForURL((url) => ['/dashboard', '/onboarding'].includes(url.pathname), { timeout: 30_000 });
+  // Every production verification user is created fresh, so the authenticated
+  // dashboard must settle on onboarding before a workspace exists.
+  await page.waitForURL((url) => url.pathname === '/onboarding', { timeout: 30_000 });
 
-  if (new URL(page.url()).pathname === '/onboarding') {
-    const onboarding = await page.request.post(appUrl('/api/onboarding'), {
-      data: {
-        fullName: '[E2E TEST] ' + role + ' ' + runId,
-        organizationName: org,
-        role,
-        countryCode: 'BD',
-        city: 'Dhaka',
-        productCategories: role === 'factory' ? [category] : [],
-      },
-    });
-    const onboardingBody = await getJson(onboarding);
-    expect(onboarding.status(), JSON.stringify(onboardingBody)).toBe(201);
-    await page.goto('/dashboard');
-  }
+  const onboarding = await page.request.post(appUrl('/api/onboarding'), {
+    data: {
+      fullName: '[E2E TEST] ' + role + ' ' + runId,
+      organizationName: org,
+      role,
+      countryCode: 'BD',
+      city: 'Dhaka',
+      productCategories: role === 'factory' ? [category] : [],
+    },
+  });
+  const onboardingBody = await getJson(onboarding);
+  expect(onboarding.status(), JSON.stringify(onboardingBody)).toBe(201);
+  await page.goto('/dashboard');
 
   await expect(page.getByRole('heading', { name: org })).toBeVisible({ timeout: 30_000 });
   return { context, page };
