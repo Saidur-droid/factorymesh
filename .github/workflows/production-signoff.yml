@@ -30,7 +30,8 @@ jobs:
           [ -n "${SUPABASE_ACCESS_TOKEN:-}" ] || { echo "::error::SUPABASE_ACCESS_TOKEN is missing"; exit 1; }
           [ -n "${SUPABASE_PROJECT_ID:-}" ] || { echo "::error::SUPABASE_PROJECT_ID is missing"; exit 1; }
 
-      - name: Configure production Auth URLs
+      - name: Check/configure production Auth URLs
+        id: auth_config
         shell: bash
         run: |
           set -euo pipefail
@@ -38,8 +39,26 @@ jobs:
           auth_url="https://api.supabase.com/v1/projects/$SUPABASE_PROJECT_ID/config/auth"
           desired_site="$PRODUCTION_BASE_URL"
           desired_allow="$PRODUCTION_BASE_URL/auth/callback,$PRODUCTION_BASE_URL/auth/confirm"
+          current_file="$(mktemp)"
 
-          current="$(curl -fsS -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" "$auth_url")"
+          code="$(curl -sS -o "$current_file" -w "%{http_code}"             -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN"             "$auth_url" || true)"
+
+          if [ "$code" = "403" ]; then
+            echo "::warning::Current Supabase access token cannot read/write Auth project configuration (HTTP 403). Auth URL configuration requires a token/account with Auth project-config permission or a one-time dashboard change."
+            echo "status=permission_blocked" >> "$GITHUB_OUTPUT"
+            rm -f "$current_file"
+            exit 0
+          fi
+
+          [ "$code" = "200" ] || {
+            echo "::error::Unexpected Auth config read status: HTTP $code"
+            cat "$current_file"
+            rm -f "$current_file"
+            exit 1
+          }
+
+          current="$(cat "$current_file")"
+          rm -f "$current_file"
           current_site="$(printf '%s' "$current" | jq -r '.site_url // ""')"
           current_allow="$(printf '%s' "$current" | jq -r '.uri_allow_list // ""')"
 
@@ -49,8 +68,26 @@ jobs:
           if [ "$current_site" != "$desired_site" ] || [ "$current_allow" != "$desired_allow" ]; then
             body="$(jq -n               --arg site "$desired_site"               --arg allow "$desired_allow"               '{site_url:$site, uri_allow_list:$allow}')"
 
-            curl -fsS -X PATCH               -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN"               -H "Content-Type: application/json"               --data "$body"               "$auth_url" >/dev/null
+            patch_file="$(mktemp)"
+            patch_code="$(curl -sS -o "$patch_file" -w "%{http_code}" -X PATCH               -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN"               -H "Content-Type: application/json"               --data "$body"               "$auth_url" || true)"
 
+            if [ "$patch_code" = "403" ]; then
+              echo "::warning::Current Supabase access token can read but cannot update Auth project configuration (HTTP 403)."
+              echo "status=permission_blocked" >> "$GITHUB_OUTPUT"
+              rm -f "$patch_file"
+              exit 0
+            fi
+
+            case "$patch_code" in
+              200|201|204) ;;
+              *)
+                echo "::error::Auth config update failed: HTTP $patch_code"
+                cat "$patch_file"
+                rm -f "$patch_file"
+                exit 1
+                ;;
+            esac
+            rm -f "$patch_file"
             echo "Production Auth URLs updated."
           else
             echo "Production Auth URLs already correct."
@@ -65,6 +102,7 @@ jobs:
 
           echo "Verified Site URL: $site"
           echo "Verified redirect allow-list: $allow"
+          echo "status=verified" >> "$GITHUB_OUTPUT"
 
       - name: Review Supabase security advisors
         shell: bash
