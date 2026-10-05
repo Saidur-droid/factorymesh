@@ -27,6 +27,7 @@ const users = {
   buyerB: { key: 'buyer-b', role: 'buyer', org: '[E2E TEST] Buyer B ' + runId },
   factoryA: { key: 'factory-a', role: 'factory', org: '[E2E TEST] Factory A ' + runId },
   factoryB: { key: 'factory-b', role: 'factory', org: '[E2E TEST] Factory B ' + runId },
+  operator: { key: 'operator', role: 'operator', org: '[E2E TEST] Operator ' + runId },
 };
 
 function isoDaysFromNow(days) {
@@ -78,6 +79,20 @@ async function loginAndOnboard(browser, identity, role, org) {
   await page.goto('/dashboard');
 
   await expect(page.getByRole('heading', { name: org })).toBeVisible({ timeout: 30_000 });
+  return { context, page };
+}
+
+async function loginExistingUser(browser, identity, expectedOrg) {
+  const context = await browser.newContext({ baseURL: BASE_URL });
+  const page = await context.newPage();
+
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(identity.email);
+  await page.getByLabel('Password').fill(identity.password);
+  await page.locator('form.auth-form button[type="submit"]').click();
+  await page.waitForURL((url) => url.pathname === '/dashboard', { timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: expectedOrg })).toBeVisible({ timeout: 30_000 });
+
   return { context, page };
 }
 
@@ -206,6 +221,26 @@ test.beforeAll(async () => {
   for (const user of Object.values(users)) {
     user.identity = await createConfirmedUser(user.key);
   }
+
+  const { data: operatorOrg, error: orgError } = await admin
+    .from('organizations')
+    .insert({
+      name: users.operator.org,
+      slug: 'e2e-operator-' + runId,
+      kind: 'operator',
+      country_code: 'BD',
+    })
+    .select('id')
+    .single();
+  if (orgError || !operatorOrg) throw orgError || new Error('Unable to create operator organization');
+
+  const { error: profileError } = await admin.from('profiles').insert({
+    id: users.operator.identity.id,
+    full_name: '[E2E TEST] Operator ' + runId,
+    role: 'operator',
+    organization_id: operatorOrg.id,
+  });
+  if (profileError) throw profileError;
 });
 
 test.afterAll(async () => {
@@ -217,6 +252,7 @@ test('real production buyer/factory workflow, isolation, reservation atomicity, 
   const buyerB = await loginAndOnboard(browser, users.buyerB.identity, 'buyer', users.buyerB.org);
   const factoryA = await loginAndOnboard(browser, users.factoryA.identity, 'factory', users.factoryA.org);
   const factoryB = await loginAndOnboard(browser, users.factoryB.identity, 'factory', users.factoryB.org);
+  const operator = await loginExistingUser(browser, users.operator.identity, users.operator.org);
 
   try {
     const createCapacityResponse = await api(factoryA.page, '/api/capacity', {
@@ -239,6 +275,20 @@ test('real production buyer/factory workflow, isolation, reservation atomicity, 
     expect(slot).toBeTruthy();
     expect(slot.available_units).toBe(100);
     expect(slot.reserved_units).toBe(0);
+
+    const verifyFactoryResponse = await api(
+      operator.page,
+      '/api/operator/factories/' + slot.factory_id + '/verification',
+      { method: 'POST', data: { verified: true } },
+    );
+    expect(verifyFactoryResponse.status()).toBe(200);
+
+    const verifyCapacityResponse = await api(
+      operator.page,
+      '/api/operator/capacity/' + slot.id + '/verification',
+      { method: 'POST', data: { decision: 'verified' } },
+    );
+    expect(verifyCapacityResponse.status()).toBe(200);
 
     const factoryBCapacityResponse = await api(factoryB.page, '/api/capacity');
     expect(factoryBCapacityResponse.status()).toBe(200);
@@ -335,6 +385,20 @@ test('real production buyer/factory workflow, isolation, reservation atomicity, 
     expect(matchA && matchA.id).toBeTruthy();
     expect(matchB && matchB.id).toBeTruthy();
 
+    for (const match of [matchA, matchB]) {
+      const response = await api(factoryA.page, '/api/matches/' + match.id + '/respond', {
+        method: 'POST',
+        data: {
+          decision: 'accept',
+          quotedUnitPrice: 7.5,
+          quotedCurrency: 'USD',
+          promisedShipDate: isoDaysFromNow(35),
+          note: 'Production E2E commercial confirmation',
+        },
+      });
+      expect(response.status()).toBe(200);
+    }
+
     const [reserveA, reserveB] = await Promise.all([
       api(buyerA.page, '/api/matches/' + matchA.id + '/reserve', {
         method: 'POST',
@@ -386,6 +450,24 @@ test('real production buyer/factory workflow, isolation, reservation atomicity, 
       expect(response.status()).toBe(201);
     }
 
+    const outcomeResponse = await api(
+      operator.page,
+      '/api/operator/orders/' + winner.order.id + '/outcome',
+      {
+        method: 'POST',
+        data: {
+          actualShipDate: deliveryDate,
+          defectRate: 1.25,
+          realizedUnitPrice: 7.5,
+          currency: 'USD',
+          notes: 'Production E2E verified outcome',
+        },
+      },
+    );
+    expect(outcomeResponse.status()).toBe(200);
+    const outcomeBody = await getJson(outcomeResponse);
+    expect(outcomeBody.metrics.sampleSize).toBeGreaterThanOrEqual(1);
+
     const eventsResponse = await api(winner.page, '/api/production-events?orderId=' + winner.order.id);
     expect(eventsResponse.status()).toBe(200);
     const eventsBody = await getJson(eventsResponse);
@@ -429,6 +511,7 @@ test('real production buyer/factory workflow, isolation, reservation atomicity, 
       buyerB.context.close(),
       factoryA.context.close(),
       factoryB.context.close(),
+      operator.context.close(),
     ]);
   }
 });
