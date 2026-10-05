@@ -39,6 +39,19 @@ Verified from the Supabase dashboard:
 
 This satisfies the **dedicated production Supabase**, **migrations**, **Vercel deployment**, **readiness**, and **real Buyer/Factory E2E/security verification** launch prerequisites. Do not call FactoryMesh 100% production-live yet: final production Auth URL configuration plus advisor/runtime-log review remain launch gates.
 
+### Final sign-off attempt — 2026-10-05
+
+A dedicated `.github/workflows/production-signoff.yml` workflow was added to automate the remaining Supabase Auth URL check/update, Supabase security/performance advisor review, and final production HTTP verification.
+
+The repository's existing `SUPABASE_ACCESS_TOKEN` is valid for the production migration/API-key workflows but the Supabase Management API returns **HTTP 403** for both:
+
+- `/v1/projects/<project-ref>/config/auth`
+- `/v1/projects/<project-ref>/advisors/security`
+
+Therefore these final two Supabase checks are currently **account/token-permission blocked**, not application-code blocked. Do not mark them verified until a Supabase account/token with project Auth/advisor permissions is connected or the checks are completed from the Supabase dashboard.
+
+The production smoke workflow remains green while this permission blocker is unresolved.
+
 ## What is already implemented
 
 - Next.js + TypeScript application
@@ -87,7 +100,7 @@ Verification evidence:
 - `supabase migration list` showed identical Local/Remote versions;
 - Supabase Table Editor shows the expected public tables.
 
-RLS/privilege behavior, private storage, Buyer/Factory isolation, and reservation concurrency are now verified by the real production launch workflow. Still required before launch: Supabase security/performance advisor review.
+RLS/privilege behavior, private storage, Buyer/Factory isolation, and reservation concurrency are now verified by the real production launch workflow. Still required before launch: Supabase security/performance advisor review. The automated advisor call currently receives HTTP 403 from the existing Supabase access token, so this is an external permission blocker.
 
 ### 3. Configure real Supabase/Auth/Storage — PARTIAL
 
@@ -98,12 +111,14 @@ Verified:
 - private `tech-packs` bucket exists with file-size and MIME restrictions;
 - signed tech-pack authorization, real upload, confirmation, signed download, cross-buyer denial, invalid MIME rejection, and oversize rejection pass in production.
 
-Still required:
+Still required (currently blocked by Supabase Management API permission on the connected token):
 
-- replace the temporary localhost Supabase Auth Site URL with `https://factorymesh.vercel.app`;
-- add production redirect URLs:
+- verify/replace the temporary localhost Supabase Auth Site URL with `https://factorymesh.vercel.app`;
+- verify/add production redirect URLs:
   - `https://factorymesh.vercel.app/auth/callback`
   - `https://factorymesh.vercel.app/auth/confirm`.
+
+The automated sign-off workflow attempts this safely and reports the permission block instead of pretending the configuration is verified.
 
 ### 4. Create/import the Vercel project — DONE
 
