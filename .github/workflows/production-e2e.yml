@@ -65,6 +65,60 @@ jobs:
           echo "SUPABASE_TEST_SERVICE_KEY=$service_key" >> "$GITHUB_ENV"
           echo "SUPABASE_TEST_PUBLISHABLE_KEY=$publishable_key" >> "$GITHUB_ENV"
 
+      - name: Verify production Auth redirect allow-list
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          node <<'NODE'
+          const { createClient } = require('@supabase/supabase-js')
+          const crypto = require('node:crypto')
+
+          const supabase = createClient(
+            process.env.SUPABASE_TEST_URL,
+            process.env.SUPABASE_TEST_SERVICE_KEY,
+            { auth: { autoRefreshToken: false, persistSession: false } }
+          )
+
+          const expected = process.env.PRODUCTION_BASE_URL + '/auth/callback?next=/onboarding'
+          const email = 'factorymesh.auth.redirect.' + Date.now() + '.' +
+            crypto.randomBytes(3).toString('hex') + '@example.com'
+          const password = 'Fm!' + crypto.randomUUID() + '9aA'
+
+          ;(async () => {
+            let userId
+            try {
+              const { data, error } = await supabase.auth.admin.generateLink({
+                type: 'signup',
+                email,
+                password,
+                options: { redirectTo: expected },
+              })
+              if (error) throw error
+
+              userId = data?.user?.id
+              const actual = data?.properties?.redirectTo || data?.properties?.redirect_to
+              console.log('Requested Auth redirect:', expected)
+              console.log('Resolved Auth redirect:', actual || '(missing)')
+
+              if (actual !== expected) {
+                throw new Error(
+                  'Production Auth redirect is not allow-listed. Expected ' +
+                  expected + ' but Supabase resolved ' + String(actual)
+                )
+              }
+            } finally {
+              if (userId) {
+                const { error: cleanupError } = await supabase.auth.admin.deleteUser(userId)
+                if (cleanupError) throw cleanupError
+              }
+            }
+          })().catch((error) => {
+            console.error(error.message || error)
+            process.exit(1)
+          })
+          NODE
+
       - name: Report production readiness response
         shell: bash
         run: |
