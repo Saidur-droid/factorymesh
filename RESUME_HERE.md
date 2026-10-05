@@ -40,7 +40,11 @@ Verified from the Supabase dashboard:
 - real production launch verification passes using temporary, clearly labelled `[E2E TEST]` accounts and cleans fixtures afterward;
 - Vercel `APP_ENV` is now scoped to Production only;
 - latest security-hardening commit deployed to Vercel Production in READY state;
-- latest main CI and production smoke are green.
+- operator verification console is merged and CI verified;
+- capacity freshness/trust lifecycle, factory commercial response, and outcome-memory loop are merged;
+- production migration `20261005000300_close_pilot_readiness_loop.sql` is applied;
+- production migration `20261005000400_index_pilot_readiness_foreign_keys.sql` is applied;
+- latest production smoke is green; latest main CI is running for the final index-only commit after the feature commit passed CI.
 
 This satisfies the **dedicated production Supabase**, **migrations**, **Vercel deployment**, **readiness**, **Supabase advisor hardening**, and **real Buyer/Factory E2E/security verification** launch prerequisites. Do not call FactoryMesh 100% production-live yet: the hosted Supabase Auth production redirect configuration remains a confirmed launch blocker, and the Vercel connector's runtime-log endpoint is currently permission-blocked.
 
@@ -81,6 +85,27 @@ The production smoke workflow remains green while this control-plane blocker is 
 - Playwright browser E2E
 - Full product/business/architecture/GTM/red-team documentation
 
+## Pilot-ready product build status
+
+The application code now closes the previously identified final product gaps:
+
+- Operator/Admin can verify or revoke factory trust.
+- Operator/Admin can verify or challenge capacity declarations.
+- Verification timestamps and actors are retained.
+- Capacity freshness decays from fresh → aging → stale/unverified.
+- Only verified factories with fresh/aging verified capacity can enter executable routing.
+- Reservation rejects stale capacity.
+- Factories can accept/reject matched opportunities and return quote, currency, promised ship date and feasibility note.
+- Buyers can reserve only factory-confirmed shortlisted capacity.
+- Operators can record actual shipment date, realized unit price, defect/rework rate and outcome notes.
+- Outcome history recalculates factory on-time and defect metrics for future routing.
+- All trust/commercial/outcome mutations are audited.
+- New production schema and indexes are applied.
+
+**Core MVP / pilot software is now code-complete for the current single-factory reservation scope.**
+
+Do not confuse this with **100% production-live**. The remaining blockers are control-plane/operational launch gates below, not missing core product workflow.
+
 ## Remaining work before saying “100% production-live”
 
 These are infrastructure/account tasks, not missing core product code.
@@ -99,6 +124,8 @@ Applied successfully to `factorymesh-prod`:
 4. `20261003000400_lock_trust_sensitive_mutations.sql`
 5. `20261005000100_grant_service_role_runtime_privileges.sql`
 6. `20261005000200_harden_security_advisors_and_fk_indexes.sql`
+7. `20261005000300_close_pilot_readiness_loop.sql`
+8. `20261005000400_index_pilot_readiness_foreign_keys.sql`
 
 Verification evidence:
 
