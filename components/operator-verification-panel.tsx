@@ -19,6 +19,9 @@ type CapacityTrustRow = {
   endsOn: string;
   confidence: number;
   source: string;
+  freshness: "fresh" | "aging" | "stale" | "unverified";
+  effectiveConfidence: number;
+  lastVerifiedAt: string | null;
 };
 
 export function OperatorVerificationPanel({
@@ -130,7 +133,14 @@ export function OperatorVerificationPanel({
             </div>
             <div>
               <span>Trust</span>
-              <strong>{slot.confidence.toFixed(0)}% · {slot.source}</strong>
+              <strong>
+                {slot.confidence.toFixed(0)}% raw · {slot.effectiveConfidence.toFixed(0)}% effective
+              </strong>
+              <span>
+                {slot.freshness}
+                {slot.lastVerifiedAt ? " · verified " + new Date(slot.lastVerifiedAt).toLocaleDateString() : " · never verified"}
+                {" · " + slot.source}
+              </span>
             </div>
             <div className="order-actions">
               <button
