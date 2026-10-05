@@ -20,10 +20,10 @@ Never commit credentials to Git.
 
 Apply migrations in order:
 
-1. `001_initial_schema.sql`
-2. `002_harden_reservations_and_storage.sql`
-3. `003_data_api_grants_and_capacity_privacy.sql`
-4. `004_lock_trust_sensitive_mutations.sql`
+1. `20261003000100_initial_schema.sql`
+2. `20261003000200_harden_reservations_and_storage.sql`
+3. `20261003000300_data_api_grants_and_capacity_privacy.sql`
+4. `20261003000400_lock_trust_sensitive_mutations.sql`
 
 After migrations:
 

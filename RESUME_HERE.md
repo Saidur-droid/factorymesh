@@ -151,7 +151,7 @@ Do NOT say “100% production-live” merely because CI is green.
 FactoryMesh reaches the current launch definition of 100% only when:
 
 1. Dedicated Supabase production project exists.
-2. All migrations including `004_lock_trust_sensitive_mutations.sql` are applied and advisors checked.
+2. All migrations including `20261003000400_lock_trust_sensitive_mutations.sql` are applied and advisors checked.
 3. Real Auth/DB/Storage work.
 4. Vercel production deployment is live.
 5. Real buyer + factory account E2E passes.
