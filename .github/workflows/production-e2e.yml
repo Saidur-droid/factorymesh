@@ -65,5 +65,15 @@ jobs:
           echo "SUPABASE_TEST_SERVICE_KEY=$service_key" >> "$GITHUB_ENV"
           echo "SUPABASE_TEST_PUBLISHABLE_KEY=$publishable_key" >> "$GITHUB_ENV"
 
+      - name: Report production readiness response
+        shell: bash
+        run: |
+          set -euo pipefail
+          body_file="$(mktemp)"
+          code="$(curl -sS -o "$body_file" -w "%{http_code}" "$PRODUCTION_BASE_URL/api/readiness" || true)"
+          body="$(cat "$body_file" || true)"
+          rm -f "$body_file"
+          echo "Production readiness HTTP $code: $body"
+
       - name: Run real production launch verification
         run: npx playwright test -c playwright.production.config.js
